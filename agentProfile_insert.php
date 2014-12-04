@@ -1,6 +1,7 @@
 ﻿<?php
 require_once('Connections/DBConnect.php');
 require_once('SentMail.php');
+$match=0;
 if(!isset($_SESSION)){ session_start(); }  //判斷session是否已啟動
 if((!empty($_SESSION['ans_ckword'])) && (!empty($_POST['anscheck']))){  //判斷這2者是否為空
      
@@ -21,6 +22,37 @@ if((!empty($_SESSION['ans_ckword'])) && (!empty($_POST['anscheck']))){  //判斷
 			$count = $db->prepare($sql);
 			if($count->execute(array($Codename,$Lv,$Email,$Line,$Location,$Area,$Transportation,$SmartDevice,$t))==TRUE)
 			{ 
+				$A_List = $db->query("SELECT * FROM `msadmin_copy` WHERE `Area` <> ''");//先用測試的管理者資料庫
+				$A_List->setFetchMode(PDO::FETCH_ASSOC);
+				$A_result_arr = $A_List->fetchAll();
+					for($i=0;$i<count($A_result_arr);$i++){
+						//優先先從Location下找Area匹配
+						$area=array();
+						$area=$A_result_arr[$i]['Area'];
+						//$Cname=array(); //debug
+						//$Cname = $A_result_arr[$i]['Codename']; //debug
+						//echo "$Cname ==> $area"; //debug
+						if (preg_match("[$area]",$Area)) {
+  							//echo "****條件符合\n";
+							$match=1;
+							array_push($sendtoEmail,$A_result_arr[$i]['Email']);
+                            array_push($sendtoName,$A_result_arr[$i]['Codename']);
+						} 
+							else {
+								//echo "\n";
+							}
+						}
+						if ($match==0){ 
+							//echo "*****沒有符合Area******\n";
+	                        $L_List = $db->prepare("SELECT * FROM `msadmin_copy` WHERE `Location` like ?");
+							$L_List->execute(array($Location));
+                            $L_result_arr = $L_List->fetchAll();
+							for($i=0;$i<count($L_result_arr);$i++){
+                                array_push($sendtoEmail,$L_result_arr[$i]['Email']);
+                                array_push($sendtoName,$L_result_arr[$i]['Codename']);
+                            }
+						}			
+			/*
 				//sendMail
 					$sendtoEmail = array();
 					$sendtoName = array();
@@ -61,6 +93,7 @@ if((!empty($_SESSION['ans_ckword'])) && (!empty($_POST['anscheck']))){  //判斷
 								array_push($sendtoName,$L_result_arr[$i]['Email']);
 							}
 						}
+				*/
 					$contents = fopen("contents.html", "w") or die("Unable to open file! Please contact Web-Admin.");
 					$txt="";
 					$txt .= "Dear. <B>".$Location."</B>區負責人，以下是新朋友[ ".$Codename." ]的聯絡資料，請您幫忙協助！<hr>";
